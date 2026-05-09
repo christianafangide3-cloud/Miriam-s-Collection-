@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isValidId(id) { 
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+
+    // Entities Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'createdAt'])
+        && data.keys().size() == 2
+        && data.email is string
+        && data.email.size() > 0
+        && data.email.size() <= 256
+        && data.createdAt == request.time;
+    }
+    
+    function isValidUserUpdate() {
+       return incoming().email == existing().email 
+          && incoming().createdAt == existing().createdAt;
+    }
+
+    function isValidWishlistItem(data) {
+      return data.keys().hasAll(['productId', 'savedAt'])
+        && data.keys().size() == 2
+        && data.productId is number
+        && data.savedAt == request.time;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      
+      allow create: if isVerified() 
+        && isOwner(userId) 
+        && isValidId(userId)
+        && isValidUser(incoming());
+        
+      allow update: if isVerified() 
+        && isOwner(userId) 
+        && isValidId(userId)
+        && isValidUserUpdate()
+        && incoming().diff(existing()).affectedKeys().size() == 0; // Nothing mutable
+        
+      allow delete: if isVerified() && isOwner(userId) && isValidId(userId);
+
+      // Wishlist Subcollection
+      match /wishlist/{docId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(docId);
+        
+        allow list: if isOwner(userId) && isValidId(userId); 
+        
+        allow create: if isVerified()
+          && isOwner(userId)
+          && isValidId(userId)
+          && isValidId(docId)
+          && isValidWishlistItem(incoming())
+          // the atomicity or exists check: optionally ensure User exists, but since getting user costs a read, we skip it or use getAfter
+          && existsAfter(/databases/$(database)/documents/users/$(userId));
+          
+        allow update: if false; // Wishlist items are immutable
+        
+        allow delete: if isVerified()
+          && isOwner(userId)
+          && isValidId(userId)
+          && isValidId(docId);
+      }
+    }
+  }
+}
