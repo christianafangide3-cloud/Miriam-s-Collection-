@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   BrowserRouter as Router, 
@@ -9,6 +11,7 @@ import {
   useNavigate,
   useLocation
 } from "react-router-dom";
+import { AdminDashboard } from "./pages/AdminDashboard";
 import { 
   ShoppingBag, 
   Menu, 
@@ -26,7 +29,8 @@ import {
   Heart,
   ArrowLeft,
   Star,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,114 +56,26 @@ import {
 import { useAuth } from "./contexts/AuthContext";
 import { useWishlist } from "./hooks/useWishlist";
 import { useCart } from "./contexts/CartContext";
-
-// --- Types ---
-interface Product {
-  id: number;
-  name: string;
-  category: "Clothes" | "Shoes" | "Bags";
-  price: number;
-  image: string;
-  isSustainable: boolean;
-  description: string;
-  longDescription?: string;
-  details?: string[];
-  materials?: string[];
-  careInstructions?: string;
-  sizingGuide?: string;
-}
-
-// --- Mock Data ---
-const PRODUCTS: Product[] = [
-  {
-    id: 1,
-    name: "Organic Cotton Trench",
-    category: "Clothes",
-    price: 285,
-    image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop",
-    isSustainable: true,
-    description: "Ethically sourced organic cotton, dyed with natural pigments.",
-    longDescription: "A timeless silhouette reimagined for the conscious era. This trench coat is crafted from GOTS-certified organic cotton, grown without harmful pesticides and dyed using circular water systems. Its durable weave ensures it will be a staple in your wardrobe for decades.",
-    details: ["Relaxed fit", "Double-breasted closure", "Adjustable waist belt", "Water-resistant finish"],
-    materials: ["100% GOTS Organic Cotton", "Recycled Polyester lining", "Corozo nut buttons"],
-    careInstructions: "Machine wash cold on gentle cycle. Do not bleach. Hang dry in shade. Cool iron if necessary.",
-    sizingGuide: "Fits true to size. Designed for a relaxed fit. Take your normal size."
-  },
-  {
-    id: 2,
-    name: "Vegan Leather Tote",
-    category: "Bags",
-    price: 195,
-    image: "https://images.unsplash.com/photo-1584917865442-de89df76afd3?q=80&w=800&auto=format&fit=crop",
-    isSustainable: true,
-    description: "Crafted from recycled pineapple leaf fibers.",
-    longDescription: "Innovation meets luxury. This tote is made from Piñatex, a natural leather alternative made from pineapple leaf fibers—a byproduct of existing agriculture. It's lightweight, durable, and completely biodegradable at the end of its long life.",
-    details: ["Spacious interior", "Internal zip pocket", "Reinforced handles", "Magnetic closure"],
-    materials: ["Piñatex (Pineapple leaf fiber)", "Organic cotton canvas lining"],
-    careInstructions: "Wipe clean with a damp cloth. Do not machine wash or tumble dry. Condition the Piñatex occasionally with natural wax.",
-    sizingGuide: "One size fits all. Dimensions: 15\" W x 12\" H x 6\" D."
-  },
-  {
-    id: 3,
-    name: "Recycled Wool Knit",
-    category: "Clothes",
-    price: 145,
-    image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop",
-    isSustainable: true,
-    description: "Soft, warm, and 100% recycled wool from post-consumer waste.",
-    longDescription: "Warmth without the footprint. Our recycled wool sweater is made from pre-loved garments that have been sorted by color, shredded, and spun into new yarn. This process eliminates the need for new dyes and significantly reduces water and energy consumption.",
-    details: ["Classic crew neck", "Ribbed cuffs and hem", "Mid-weight knit", "Naturally odor-resistant"],
-    materials: ["100% Recycled Wool"],
-    careInstructions: "Hand wash in cold water with wool detergent. Dry flat. Do not wring or hang to dry.",
-    sizingGuide: "Regular fit. For a looser fit, we recommend sizing up."
-  },
-  {
-    id: 4,
-    name: "Hemp Canvas Sneakers",
-    category: "Shoes",
-    price: 120,
-    image: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?q=80&w=800&auto=format&fit=crop",
-    isSustainable: true,
-    description: "Durable hemp upper with natural rubber soles.",
-    longDescription: "The ultimate everyday sneaker, built to last. Hemp is one of the most sustainable fibers on earth, requiring minimal water and no pesticides. Paired with a natural rubber sole, these sneakers are as kind to your feet as they are to the planet.",
-    details: ["Breathable hemp upper", "Natural rubber outsole", "Cork insole", "Recycled cotton laces"],
-    materials: ["Hemp Canvas", "Natural Rubber", "Cork"],
-    careInstructions: "Spot clean with a damp cloth and mild soap. Allow to air dry completely before wearing.",
-    sizingGuide: "True to size. If you are between sizes, we recommend sizing down."
-  },
-  {
-    id: 5,
-    name: "Linen Summer Dress",
-    category: "Clothes",
-    price: 175,
-    image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?q=80&w=800&auto=format&fit=crop",
-    isSustainable: true,
-    description: "Breathable European linen, handmade in small batches.",
-    longDescription: "Effortless elegance for warmer days. This dress is made from premium European flax, a carbon-negative crop. Each piece is handmade in a small atelier that prioritizes artisan well-being and zero-waste cutting techniques.",
-    details: ["A-line silhouette", "Side seam pockets", "Adjustable straps", "Pre-washed for softness"],
-    materials: ["100% European Flax Linen"],
-    careInstructions: "Machine wash on delicate cycle. Line dry or tumble dry low. Iron on reverse side while slightly damp.",
-    sizingGuide: "Relaxed fit. Straps are adjustable to accommodate different torso lengths."
-  },
-  {
-    id: 6,
-    name: "Cork Leather Belt Bag",
-    category: "Bags",
-    price: 110,
-    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?q=80&w=800&auto=format&fit=crop",
-    isSustainable: true,
-    description: "Water-resistant cork leather, harvested without harming trees.",
-    longDescription: "Functional, modern, and regenerative. Cork is harvested by stripping the bark from cork oak trees, which then regenerates, absorbing more CO2 in the process. This belt bag is water-resistant, ultra-light, and perfect for hands-free exploration.",
-    details: ["Adjustable strap", "Front zip pocket", "Hidden back pocket", "Lightweight design"],
-    materials: ["Natural Cork Leather", "Recycled metal hardware"],
-    careInstructions: "Wipe with a soft, damp cloth and mild soap. Allow to dry naturally.",
-    sizingGuide: "Strap adjusts from 30\" to 45\" to be worn around the waist or across the body."
-  }
-];
+import { useProducts, Product } from "./contexts/ProductsContext";
+import { db } from "./lib/firebase";
+import { addDoc, collection, serverTimestamp, query, getDocs, orderBy, doc } from "firebase/firestore";
+import { handleFirestoreError, OperationType } from "./lib/firestore-errors";
 
 const CATEGORIES = ["All", "Clothes", "Shoes", "Bags"];
 
 // --- Components ---
+
+import { Profile } from "./pages/Profile";
+import { WishlistPage } from "./pages/Wishlist";
+import { Discover } from "./pages/Discover";
+import { Sustainability } from "./pages/Sustainability";
+import { Story } from "./pages/Story";
+import { Contact } from "./pages/Contact";
+import { PrivacyPolicy } from "./pages/PrivacyPolicy";
+import { ShippingReturns } from "./pages/ShippingReturns";
+import { FAQ } from "./pages/FAQ";
+import { Checkout } from "./pages/Checkout";
+import { OrderSuccess } from "./pages/OrderSuccess";
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
@@ -171,8 +87,11 @@ const ScrollToTop = () => {
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, loginWithGoogle, logout } = useAuth();
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { user, isAdmin, loginWithGoogle, logout } = useAuth();
   const { cartItemCount, cart, removeFromCart, updateQuantity } = useCart();
+  const { products } = useProducts();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -205,16 +124,20 @@ const Navbar = () => {
                 </Link>
               ))}
               <Separator />
-              <a href="#sustainability" className="text-xl font-serif hover:text-primary transition-colors">Sustainability</a>
-              <a href="#about" className="text-xl font-serif hover:text-primary transition-colors">Our Story</a>
+              <Link to="/sustainability" className="text-xl font-serif hover:text-primary transition-colors">Sustainability</Link>
+              <Link to="/story" className="text-xl font-serif hover:text-primary transition-colors">Our Story</Link>
             </div>
           </SheetContent>
         </Sheet>
 
         <div className="hidden md:flex items-center gap-6 text-sm uppercase tracking-widest font-medium">
           <Link to="/" className="hover:text-primary transition-colors">Shop</Link>
-          <a href="#sustainability" className="hover:text-primary transition-colors">Sustainability</a>
-          <a href="#about" className="hover:text-primary transition-colors">Story</a>
+          <Link to="/discover" className="hover:text-primary transition-colors flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            Discover
+          </Link>
+          <Link to="/sustainability" className="hover:text-primary transition-colors">Sustainability</Link>
+          <Link to="/story" className="hover:text-primary transition-colors">Story</Link>
         </div>
       </div>
 
@@ -223,7 +146,9 @@ const Navbar = () => {
       </Link>
 
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="hidden sm:flex">
+        <Button variant="ghost" size="icon" className="hidden sm:flex" onClick={() => {
+          document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' });
+        }}>
           <Search className="w-5 h-5" />
         </Button>
         {user ? (
@@ -242,6 +167,18 @@ const Navbar = () => {
             <DropdownMenuContent align="end" className="w-48 bg-background border-border">
               <DropdownMenuLabel className="font-serif">{user.displayName || "My Account"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link to="/profile">Profile & Orders</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link to="/wishlist">Wishlist</Link>
+              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link to="/admin">Admin Dashboard</Link>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:bg-destructive/10">Sign Out</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -251,7 +188,7 @@ const Navbar = () => {
             Sign In with Google
           </Button>
         )}
-        <Sheet>
+        <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
           <SheetTrigger render={<Button variant="ghost" size="icon" className="relative cursor-pointer" />}>
             <ShoppingBag className="w-5 h-5" />
             {cartItemCount > 0 && (
@@ -262,7 +199,11 @@ const Navbar = () => {
           </SheetTrigger>
           <SheetContent side="right" className="bg-background w-[400px] sm:w-[540px]">
             <div className="flex flex-col h-full">
-              <h2 className="text-2xl font-serif mb-6">Shopping Cart ({cartItemCount})</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-serif">
+                  Shopping Cart ({cartItemCount})
+                </h2>
+              </div>
               
               <ScrollArea className="flex-1 pr-4 -mr-4">
                 {cart.length === 0 ? (
@@ -273,7 +214,7 @@ const Navbar = () => {
                 ) : (
                   <div className="space-y-6">
                     {cart.map(item => {
-                      const product = PRODUCTS.find(p => p.id === item.productId);
+                      const product = products.find(p => p.id === item.productId);
                       if (!product) return null;
                       return (
                         <div key={item.productId} className="flex gap-4 border-b border-border pb-4">
@@ -281,7 +222,7 @@ const Navbar = () => {
                           <div className="flex-1 flex flex-col justify-between">
                             <div>
                               <h4 className="font-serif text-lg leading-tight mb-1">{product.name}</h4>
-                              <p className="text-sm text-muted-foreground">₦{product.price}</p>
+                              <p className="text-sm text-muted-foreground">₦{product.price.toLocaleString()}</p>
                             </div>
                             <div className="flex items-center justify-between mt-4">
                               <div className="flex items-center gap-2 border border-border rounded-full px-2 py-1">
@@ -305,12 +246,20 @@ const Navbar = () => {
                     <span className="font-serif text-xl">Total</span>
                     <span className="font-medium text-xl">
                       ₦{cart.reduce((total, item) => {
-                        const product = PRODUCTS.find(p => p.id === item.productId);
+                        const product = products.find(p => p.id === item.productId);
                         return total + (product ? product.price * item.quantity : 0);
-                      }, 0)}
+                      }, 0).toLocaleString()}
                     </span>
                   </div>
-                  <Button className="w-full rounded-full py-6 text-lg">Checkout</Button>
+                  <Button 
+                    className="w-full rounded-full py-6 text-lg" 
+                    onClick={() => {
+                      setIsCartOpen(false);
+                      navigate("/checkout");
+                    }}
+                  >
+                    Checkout
+                  </Button>
                 </div>
               )}
             </div>
@@ -417,24 +366,89 @@ const FeaturedCategories = () => {
   );
 };
 
+const ProductRating = ({ productId }: { productId: string }) => {
+  const [rating, setRating] = useState(0);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const fetchRating = async () => {
+      try {
+        const q = query(collection(db, `products/${productId}/reviews`));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          const total = snapshot.docs.reduce((acc, doc) => acc + (doc.data().rating || 0), 0);
+          setRating(total / snapshot.docs.length);
+          setCount(snapshot.docs.length);
+        }
+      } catch (err) {
+        console.error("Error fetching rating", err);
+      }
+    };
+    fetchRating();
+  }, [productId]);
+
+  if (count === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 mt-1">
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <Star 
+            key={s} 
+            className={`w-3 h-3 ${rating >= s ? 'fill-primary text-primary' : rating >= s - 0.5 ? 'fill-primary/50 text-primary' : 'text-muted-foreground/30'}`} 
+          />
+        ))}
+      </div>
+      <span className="text-[10px] text-muted-foreground">({count})</span>
+    </div>
+  );
+};
+
 const ProductGrid = () => {
-  const [activeTab, setActiveTab] = useState("All");
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const categoryParam = searchParams.get('category');
+
+  const [activeTab, setActiveTab] = useState(categoryParam || "All");
   const [sortBy, setSortBy] = useState("featured");
+  const [searchQuery, setSearchQuery] = useState("");
   const { wishlistProductIds, toggleWishlist } = useWishlist();
   const { loginWithGoogle, user } = useAuth();
   const { addToCart } = useCart();
+  const { products, loading } = useProducts();
+
+  useEffect(() => {
+    if (categoryParam) {
+      setActiveTab(categoryParam);
+      // scroll to product grid
+      document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [categoryParam]);
 
   const filteredProducts = useMemo(() => {
     let result = activeTab === "All" 
-      ? [...PRODUCTS] 
-      : PRODUCTS.filter(p => p.category === activeTab);
+      ? [...products] 
+      : products.filter(p => p.category === activeTab);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q));
+    }
 
     if (sortBy === "price-low") result.sort((a, b) => a.price - b.price);
     if (sortBy === "price-high") result.sort((a, b) => b.price - a.price);
     if (sortBy === "name-az") result.sort((a, b) => a.name.localeCompare(b.name));
     
     return result;
-  }, [activeTab, sortBy]);
+  }, [activeTab, sortBy, products, searchQuery]);
+
+  if (loading) {
+    return (
+      <section id="shop" className="py-24 px-6 md:px-12 bg-[#f0ede8] min-h-[500px] flex items-center justify-center">
+        <div className="text-xl font-serif animate-pulse text-muted-foreground">Loading collection...</div>
+      </section>
+    );
+  }
 
   return (
     <section id="shop" className="py-24 px-6 md:px-12 bg-[#f0ede8]">
@@ -444,8 +458,19 @@ const ProductGrid = () => {
           <h2 className="text-4xl md:text-5xl font-serif">The Sustainable Edit</h2>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          <div className="flex gap-6 overflow-x-auto pb-2 no-scrollbar">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 overflow-hidden">
+          <div className="flex items-center border border-border/50 rounded-full px-3 py-2 bg-white shadow-sm w-full sm:w-auto">
+            <Search className="w-4 h-4 text-muted-foreground mr-2 shrink-0" />
+            <input 
+              type="text" 
+              placeholder="Search..." 
+              className="bg-transparent border-none focus:outline-none text-sm w-full sm:w-[150px] md:w-[200px]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex gap-6 overflow-x-auto pb-2 no-scrollbar pl-2">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
@@ -465,7 +490,7 @@ const ProductGrid = () => {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 min-w-[180px]">
+          <div className="flex items-center gap-2 min-w-[180px] shrink-0">
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground whitespace-nowrap">Sort by:</span>
             <Select value={sortBy} onValueChange={setSortBy}>
               <SelectTrigger className="h-8 border-none bg-transparent focus:ring-0 text-xs uppercase tracking-widest font-medium p-0 gap-1">
@@ -499,7 +524,7 @@ const ProductGrid = () => {
                   <img 
                     src={product.image} 
                     alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     referrerPolicy="no-referrer"
                   />
                   {product.isSustainable && (
@@ -523,9 +548,10 @@ const ProductGrid = () => {
                   >
                     <Heart className={`w-4 h-4 ${wishlistProductIds.includes(product.id) ? "fill-primary text-primary" : ""}`} />
                   </Button>
-                  <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-500" />
+                  <div className="absolute inset-x-0 bottom-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                     <Button 
-                      className="w-full rounded-full bg-white text-black hover:bg-white/90 border-none" 
+                      className="w-full rounded-full bg-white text-black hover:bg-white/90 border-none shadow-lg" 
                       onClick={(e) => { 
                         e.preventDefault(); 
                         e.stopPropagation(); 
@@ -542,9 +568,10 @@ const ProductGrid = () => {
                   <Link to={`/product/${product.id}`}>
                     <h3 className="text-xl font-serif mb-1 group-hover:text-primary transition-colors">{product.name}</h3>
                   </Link>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{product.description}</p>
+                  <ProductRating productId={product.id} />
+                  <p className="text-sm text-muted-foreground line-clamp-1 mt-1">{product.description}</p>
                 </div>
-                <span className="font-medium text-lg">₦{product.price}</span>
+                <span className="font-medium text-lg">₦{product.price.toLocaleString()}</span>
               </div>
             </motion.div>
           ))}
@@ -557,10 +584,86 @@ const ProductGrid = () => {
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = PRODUCTS.find(p => p.id === Number(id));
+  const { products, loading } = useProducts();
+  const product = products.find(p => p.id === id);
   const { wishlistProductIds, toggleWishlist } = useWishlist();
   const { user, loginWithGoogle } = useAuth();
   const { addToCart } = useCart();
+
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [ratingInput, setRatingInput] = useState<number>(0);
+  const [commentInput, setCommentInput] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  useEffect(() => {
+    if (!product) return;
+    const fetchReviews = async () => {
+      try {
+        const q = query(
+          collection(db, `products/${product.id}/reviews`),
+          orderBy("createdAt", "desc")
+        );
+        const snapshot = await getDocs(q);
+        setReviews(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (err) {
+        console.error("Failed to fetch reviews", err);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    fetchReviews();
+  }, [product]);
+
+  const handleSubmitReview = async () => {
+    if (!user) {
+      toast.error("Please login to submit a review.");
+      loginWithGoogle();
+      return;
+    }
+    if (ratingInput < 1 || ratingInput > 5) {
+      toast.error("Please select a rating between 1 and 5.");
+      return;
+    }
+    if (!commentInput.trim()) {
+      toast.error("Please enter a review comment.");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      if (!product) return;
+      const reviewData = {
+        productId: product.id,
+        userId: user.uid,
+        userName: user.displayName || "Anonymous",
+        rating: ratingInput,
+        comment: commentInput.trim(),
+        createdAt: serverTimestamp(),
+      };
+      
+      const newRef = await addDoc(collection(db, `products/${product.id}/reviews`), reviewData);
+      
+      // Optimitistic update
+      setReviews(prev => [{ id: newRef.id, ...reviewData, createdAt: { toDate: () => new Date() } }, ...prev]);
+      setRatingInput(0);
+      setCommentInput("");
+      toast.success("Review submitted successfully!");
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `products/${product?.id}/reviews`);
+      toast.error("Failed to submit review.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center pt-24 space-y-4">
+        <div className="text-xl font-serif animate-pulse">Loading piece...</div>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -572,10 +675,11 @@ const ProductDetail = () => {
   }
 
   const relatedProducts = useMemo(() => {
-    const sameCategory = PRODUCTS.filter(p => p.id !== product.id && p.category === product.category);
-    const otherCategories = PRODUCTS.filter(p => p.id !== product.id && p.category !== product.category);
+    if (!product) return [];
+    const sameCategory = products.filter(p => p.id !== product.id && p.category === product.category);
+    const otherCategories = products.filter(p => p.id !== product.id && p.category !== product.category);
     return [...sameCategory, ...otherCategories].slice(0, 4);
-  }, [product.id, product.category]);
+  }, [product, products]);
 
   return (
     <motion.div 
@@ -608,13 +712,23 @@ const ProductDetail = () => {
                 referrerPolicy="no-referrer"
               />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="aspect-square rounded-xl bg-muted overflow-hidden opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
-                  <img src={product.image} alt="" className="w-full h-full object-cover grayscale" referrerPolicy="no-referrer" />
-                </div>
-              ))}
-            </div>
+            {product.additionalImages && product.additionalImages.length > 0 ? (
+              <div className="grid grid-cols-3 gap-4">
+                {[product.image, ...product.additionalImages].slice(0, 3).map((img, i) => (
+                  <div key={i} className="aspect-square rounded-xl bg-muted overflow-hidden opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
+                    <img src={img} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="aspect-square rounded-xl bg-muted overflow-hidden opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
+                    <img src={product.image} alt="" className="w-full h-full object-cover grayscale" referrerPolicy="no-referrer" />
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
 
           {/* Product Info */}
@@ -636,15 +750,34 @@ const ProductDetail = () => {
               </div>
               <h1 className="text-4xl md:text-6xl font-serif mb-4">{product.name}</h1>
               <p className="text-2xl font-medium mb-6">₦{product.price}</p>
-              <div className="flex items-center gap-1 mb-8">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-4 h-4 fill-primary text-primary" />
-                ))}
-                <span className="text-xs text-muted-foreground ml-2">(24 Reviews)</span>
+              <div className="flex items-center gap-1 mb-8 cursor-pointer" onClick={() => document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                {[1, 2, 3, 4, 5].map((s) => {
+                   const avgRating = reviews.length > 0 ? reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length : 0;
+                   return <Star key={s} className={`w-4 h-4 ${avgRating >= s ? 'fill-primary text-primary' : avgRating >= s - 0.5 ? 'fill-primary/50 text-primary' : 'text-muted-foreground/30'}`} />;
+                })}
+                <span className="text-xs text-muted-foreground ml-2">({reviews.length} Review{reviews.length !== 1 ? 's' : ''})</span>
               </div>
               <p className="text-lg text-muted-foreground leading-relaxed mb-8">
                 {product.longDescription || product.description}
               </p>
+
+              {product.additionalImages && product.additionalImages.length > 0 && (
+                <div className="mb-8">
+                  <h4 className="text-sm uppercase tracking-widest font-semibold mb-4">Gallery</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {product.additionalImages.map((img, i) => (
+                      <div key={i} className="aspect-square rounded-xl bg-muted overflow-hidden">
+                        <img 
+                          src={img} 
+                          alt={`${product.name} detail ${i + 1}`} 
+                          className="w-full h-full object-cover transition-transform hover:scale-105" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-8 mb-12">
@@ -692,6 +825,7 @@ const ProductDetail = () => {
             <div className="flex flex-col sm:flex-row gap-4 mt-auto">
               <Button 
                 size="lg" 
+                variant="outline"
                 className="flex-1 rounded-full py-8 text-lg"
                 onClick={() => addToCart(product.id, 1)}
               >
@@ -699,8 +833,15 @@ const ProductDetail = () => {
               </Button>
               <Button 
                 size="lg" 
+                className="flex-1 rounded-full py-8 text-lg"
+                onClick={() => navigate('/checkout', { state: { buyNowProduct: product.id } })}
+              >
+                Buy Now
+              </Button>
+              <Button 
+                size="lg" 
                 variant="outline" 
-                className="rounded-full py-8 text-lg border-primary text-primary hover:bg-primary/5"
+                className="rounded-full py-8 px-6 text-lg border-primary text-primary hover:bg-primary/5 shrink-0"
                 onClick={() => {
                   if (!user) {
                     loginWithGoogle();
@@ -709,8 +850,7 @@ const ProductDetail = () => {
                   }
                 }}
               >
-                <Heart className={`w-5 h-5 mr-2 ${wishlistProductIds.includes(product.id) ? "fill-primary" : ""}`} /> 
-                {wishlistProductIds.includes(product.id) ? "Wishlisted" : "Wishlist"}
+                <Heart className={`w-5 h-5 ${wishlistProductIds.includes(product.id) ? "fill-primary" : ""}`} /> 
               </Button>
             </div>
 
@@ -730,6 +870,87 @@ const ProductDetail = () => {
             </div>
           </motion.div>
         </div>
+
+        {/* Customer Reviews */}
+        <section id="reviews-section" className="mt-24 border-t border-border pt-16">
+          <h3 className="text-3xl font-serif mb-12">Customer Reviews</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+            <div>
+              <h4 className="text-xl font-medium mb-6">Write a Review</h4>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Rating</label>
+                  <div className="flex gap-1 text-muted-foreground">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star 
+                        key={star} 
+                        className={`w-6 h-6 cursor-pointer transition-colors ${ratingInput >= star ? 'fill-primary text-primary' : 'hover:fill-primary/50'}`} 
+                        onClick={() => setRatingInput(star)}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Your Review</label>
+                  <textarea 
+                    className="w-full min-h-[120px] rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" 
+                    placeholder="What did you think about this product?"
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                  ></textarea>
+                </div>
+                <Button 
+                  className="rounded-full px-8" 
+                  onClick={handleSubmitReview}
+                  disabled={isSubmittingReview}
+                >
+                  {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                </Button>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="text-xl font-medium mb-6">Reviews ({reviews.length})</h4>
+              {reviewsLoading ? (
+                <div className="bg-muted/30 rounded-xl p-8 text-center animate-pulse">
+                  <p className="text-muted-foreground">Loading reviews...</p>
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="bg-muted/30 rounded-xl p-8 text-center">
+                  <Star className="w-12 h-12 mx-auto mb-4 text-muted-foreground/30" />
+                  <p className="text-muted-foreground">
+                    No reviews yet. Be the first to review this product!
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {reviews.map((review) => (
+                    <div key={review.id} className="border-b border-border pb-6 last:border-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">{review.userName || 'Anonymous'}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {review.createdAt?.toDate ? new Date(review.createdAt.toDate()).toLocaleDateString() : 'Just now'}
+                        </span>
+                      </div>
+                      <div className="flex gap-1 mb-3">
+                        {[...Array(5)].map((_, i) => (
+                          <Star 
+                            key={i} 
+                            className={`w-4 h-4 ${i < review.rating ? 'fill-primary text-primary' : 'text-muted-foreground/30'}`} 
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {review.comment}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* Related Products */}
         <section className="mt-32">
@@ -810,6 +1031,18 @@ const SustainabilitySection = () => {
 };
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email) {
+      setSubscribed(true);
+      setEmail("");
+      setTimeout(() => setSubscribed(false), 3000);
+    }
+  };
+
   return (
     <footer className="bg-background pt-24 pb-12 px-6 md:px-12 border-t">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-24">
@@ -836,22 +1069,22 @@ const Footer = () => {
         <div>
           <h4 className="font-serif text-xl mb-6">Shop</h4>
           <ul className="space-y-4 text-sm text-muted-foreground">
+            <li><Link to="/discover" className="hover:text-primary transition-colors flex items-center gap-2">Discover <Sparkles className="w-3 h-3 text-primary" /></Link></li>
             <li><Link to="/" className="hover:text-primary transition-colors">New Arrivals</Link></li>
-            <li><Link to="/" className="hover:text-primary transition-colors">Best Sellers</Link></li>
-            <li><Link to="/" className="hover:text-primary transition-colors">Clothes</Link></li>
-            <li><Link to="/" className="hover:text-primary transition-colors">Shoes</Link></li>
-            <li><Link to="/" className="hover:text-primary transition-colors">Bags</Link></li>
+            <li><Link to="/?category=Clothes" className="hover:text-primary transition-colors">Clothes</Link></li>
+            <li><Link to="/?category=Shoes" className="hover:text-primary transition-colors">Shoes</Link></li>
+            <li><Link to="/?category=Bags" className="hover:text-primary transition-colors">Bags</Link></li>
           </ul>
         </div>
 
         <div>
           <h4 className="font-serif text-xl mb-6">Information</h4>
           <ul className="space-y-4 text-sm text-muted-foreground">
-            <li><a href="#about" className="hover:text-primary transition-colors">Our Story</a></li>
-            <li><a href="#sustainability" className="hover:text-primary transition-colors">Sustainability</a></li>
-            <li><a href="#" className="hover:text-primary transition-colors">Shipping & Returns</a></li>
-            <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-            <li><a href="#" className="hover:text-primary transition-colors">Contact Us</a></li>
+            <li><Link to="/story" className="hover:text-primary transition-colors">Our Story</Link></li>
+            <li><Link to="/sustainability" className="hover:text-primary transition-colors">Sustainability</Link></li>
+            <li><Link to="/shipping-returns" className="hover:text-primary transition-colors">Shipping & Returns</Link></li>
+            <li><Link to="/privacy-policy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+            <li><Link to="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
           </ul>
         </div>
 
@@ -860,14 +1093,20 @@ const Footer = () => {
           <p className="text-sm text-muted-foreground mb-6">
             Join our community for exclusive updates on conscious living.
           </p>
-          <div className="flex gap-2">
+          <form onSubmit={handleSubscribe} className="flex gap-2">
             <input 
               type="email" 
-              placeholder="Your email" 
+              placeholder={subscribed ? "Success!" : "Your email"}
               className="bg-muted border-none rounded-full px-4 py-2 text-sm w-full focus:ring-1 focus:ring-primary outline-none"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={subscribed}
             />
-            <Button className="rounded-full px-6">Join</Button>
-          </div>
+            <Button className="rounded-full px-6" disabled={subscribed}>
+              {subscribed ? "Joined" : "Join"}
+            </Button>
+          </form>
         </div>
       </div>
 
@@ -919,10 +1158,23 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/wishlist" element={<WishlistPage />} />
+            <Route path="/discover" element={<Discover />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-success" element={<OrderSuccess />} />
+            <Route path="/sustainability" element={<Sustainability />} />
+            <Route path="/story" element={<Story />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/shipping-returns" element={<ShippingReturns />} />
           </Routes>
         </main>
         <Footer />
       </div>
+      <Toaster />
     </Router>
   );
 }

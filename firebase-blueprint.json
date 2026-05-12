@@ -15,13 +15,63 @@
       },
       "required": ["email", "createdAt"]
     },
+    "Admin": {
+      "title": "Admin",
+      "description": "Admin users who can manage products.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "timestamp"
+        }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A product available for purchase.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "additionalImages": { "type": "array" },
+        "description": { "type": "string" },
+        "longDescription": { "type": "string" },
+        "details": { "type": "array" },
+        "materials": { "type": "array" },
+        "careInstructions": { "type": "string" },
+        "sizingGuide": { "type": "string" },
+        "isSustainable": { "type": "boolean" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      },
+      "required": ["name", "price", "createdAt", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A user review for a product.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "timestamp" }
+      },
+      "required": ["productId", "userId", "userName", "rating", "comment", "createdAt"]
+    },
     "WishlistItem": {
       "title": "WishlistItem",
       "description": "An item saved to the user's wishlist.",
       "type": "object",
       "properties": {
         "productId": {
-          "type": "number"
+          "type": "string"
         },
         "savedAt": {
           "type": "timestamp"
@@ -36,6 +86,24 @@
         "$ref": "#/entities/User"
       },
       "description": "Stores basic user profile information."
+    },
+    "/admins/{userId}": {
+      "schema": {
+        "$ref": "#/entities/Admin"
+      },
+      "description": "Stores admin privileges."
+    },
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/Product"
+      },
+      "description": "Stores product listings."
+    },
+    "/products/{productId}/reviews/{reviewId}": {
+      "schema": {
+        "$ref": "#/entities/Review"
+      },
+      "description": "Stores user reviews for a specific product."
     },
     "/users/{userId}/wishlist/{productId}": {
       "schema": {

@@ -15,6 +15,16 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+
+    // Admin Entity Validation
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['email', 'createdAt'])
+        && data.keys().size() == 2
+        && data.email is string
+        && data.email.size() > 0
+        && data.createdAt == request.time;
+    }
 
     // Entities Validation
     function isValidUser(data) {
@@ -34,8 +44,32 @@ service cloud.firestore {
     function isValidWishlistItem(data) {
       return data.keys().hasAll(['productId', 'savedAt'])
         && data.keys().size() == 2
-        && data.productId is number
+        && data.productId is string
         && data.savedAt == request.time;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'price', 'createdAt', 'updatedAt'])
+        && data.name is string && data.name.size() > 0
+        && data.price is number
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['productId', 'userId', 'userName', 'rating', 'comment', 'createdAt'])
+        && data.keys().size() == 6
+        && data.productId is string
+        && data.userId is string && data.userId == request.auth.uid
+        && data.userName is string
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() <= 1000
+        && data.createdAt == request.time;
+    }
+
+    // Admins Collection
+    match /admins/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
     }
 
     // Users Collection
@@ -66,7 +100,6 @@ service cloud.firestore {
           && isValidId(userId)
           && isValidId(docId)
           && isValidWishlistItem(incoming())
-          // the atomicity or exists check: optionally ensure User exists, but since getting user costs a read, we skip it or use getAfter
           && existsAfter(/databases/$(database)/documents/users/$(userId));
           
         allow update: if false; // Wishlist items are immutable
@@ -75,6 +108,44 @@ service cloud.firestore {
           && isOwner(userId)
           && isValidId(userId)
           && isValidId(docId);
+      }
+    }
+
+    // Products Collection
+    match /products/{productId} {
+      allow get: if isValidId(productId);
+      allow list: if true;
+      
+      allow create: if isAdmin() 
+        && isValidId(productId)
+        && isValidProduct(incoming());
+        
+      allow update: if isAdmin() 
+        && isValidId(productId)
+        && incoming().updatedAt == request.time
+        && incoming().createdAt == existing().createdAt;
+        
+      allow delete: if isAdmin() && isValidId(productId);
+
+      match /reviews/{reviewId} {
+        allow get: if isValidId(reviewId);
+        allow list: if true;
+
+        allow create: if isVerified()
+          && isValidId(reviewId)
+          && isValidReview(incoming())
+          && existsAfter(/databases/$(database)/documents/products/$(productId));
+
+        allow update: if isVerified()
+          && isValidId(reviewId)
+          && isOwner(existing().userId)
+          && incoming().createdAt == existing().createdAt
+          && incoming().productId == existing().productId
+          && incoming().userId == existing().userId
+          && incoming().userName == existing().userName
+          && incoming().diff(existing()).affectedKeys().hasOnly(['comment', 'rating']);
+
+        allow delete: if (isVerified() && isOwner(existing().userId)) || isAdmin();
       }
     }
   }

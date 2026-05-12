@@ -6,6 +6,7 @@ import { handleFirestoreError, OperationType } from '../lib/firestore-errors';
 
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -13,6 +14,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  isAdmin: false,
   loading: true,
   loginWithGoogle: async () => {},
   logout: async () => {},
@@ -22,6 +24,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,9 +55,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               createdAt: serverTimestamp()
             });
           }
+
+          const adminDoc = await getDoc(doc(db, 'admins', currentUser.uid));
+          setIsAdmin(adminDoc.exists());
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, `users/${currentUser.uid}`);
         }
+      } else {
+        setIsAdmin(false);
       }
     });
 
@@ -79,7 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );
